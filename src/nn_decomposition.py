@@ -84,7 +84,18 @@ if __name__ == '__main__':
     testPredictPlot[len(trainPredict)+(LOOK_BACK*2)+1:len(dataset)-1, :] = testPredict
 
     # Assembles plots and shows user 
-    plt.plot(dataset)
-    plt.plot(trainPredictPlot)
-    plt.plot(testPredictPlot)
+    plt.plot(dataset, alpha=0.5)
+    plt.plot(trainPredictPlot, alpha=0.5)
+    plt.plot(testPredictPlot, alpha=0.5)
+    plt.savefig('../images/nn_train_test_vs_dataset.png')
+    plt.clf()
+    
+    
+    
+    train_size = int( len(dataset) * 0.67 )
+    
+    test_diff = testPredict - dataset[train_size+2:]
+    
+    plt.plot(test_diff)
     plt.show()
+    plt.close()
