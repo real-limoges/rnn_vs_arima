@@ -5,20 +5,13 @@ and Recurrant Neural Networks
 
 import statsmodels.api as sm
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import seaborn
 
-def arrange_time_series(rule='D'):
-    '''
-    Arranges the login time stamps into buckets given the rule. 
-    Returns a pandas series.
-    '''
-    
-    raw_logins = pd.read_json('../data/logins.json', typ='series')
-    logins_adder = pd.Series(1, raw_logins) 
-    
-    return logins_adder.resample(rule=rule).count()
+from import_data import arrange_time_series
 
+np.random.seed(1234)
 
 def plot_acf_pacf(ts, periods=0):
     '''
@@ -34,29 +27,61 @@ def plot_acf_pacf(ts, periods=0):
     plt.show()
     plt.close()    
 
+
 def extract_dow(ts):
+    '''
+    Extracts the day of the seek from the time series
+    '''
 
     dow = pd.Series(pd.DatetimeIndex(ts.index).weekday)
     return dow
 
 
-def run_ARIMA(ts, exog, order):
+def create_train_test(dataset):
+    '''
+    Creates a train test split for time series data (univariate)
     '''
 
+    train_size = int( len(dataset) * 0.67 )
+    test_size = 1 - train_size
+
+    return dataset[0:train_size], dataset[train_size:]
+
+
+def run_ARIMA(ts, order, exog=None):
+    '''
+    Creates the ARIMA model
     '''
 
-    model = sm.tsa.ARIMA(ts, order=order, exog=exog).fit()
-    print model.summary()
-
+    return sm.tsa.ARIMA(ts, order=order, exog=exog).fit()
+    
 
 if __name__ == '__main__':
     logins = arrange_time_series(rule='H')
-    logins_diff_7 = logins.diff(1)
+    dataset  = logins.diff(1).values.astype('float32')[1:]
 
-    dow = extract_dow(logins)
+    train_size = int( len(dataset) * 0.67 )
+    test_size = 1 - train_size
+    
+    train, test = create_train_test(dataset)
 
-#    plot_acf_pacf(logins_diff_7, 1)
+    #plot_acf_pacf(dataset, 1)
 
+    model = run_ARIMA(train, order=(0,1,0))
+    print model.summary() 
 
-    run_ARIMA(list(logins_diff_7)[1:], list(dow[1:]), (0,1,0))
+    trainPredict = model.predict(1, len(train)+1, dynamic=True)
+    testPredict = model.predict(1+len(train), len(train)+len(test), dynamic=True)
 
+    trainPredictPlot = np.empty_like(dataset)
+    trainPredictPlot[:] = np.nan
+    trainPredictPlot[0:len(trainPredict)] = trainPredict
+
+    testPredictPlot = np.empty_like(dataset)
+    testPredictPlot[:] = np.nan
+    trainPredictPlot[len(trainPredict)-1:len(trainPredict)+len(testPredict)-1] = testPredict
+
+    plt.plot(dataset)
+    plt.plot(trainPredictPlot)
+    plt.plot(testPredictPlot)
+    plt.show()
